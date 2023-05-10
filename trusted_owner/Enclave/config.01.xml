@@ -1,0 +1,45 @@
+<!--
+-- Burrito
+-- Copyright (C) 2023 The Blockhouse Technology Limited (TBTL)
+--
+-- This program is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU Affero General Public License as published
+-- by the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Affero General Public License for more details.
+--
+-- You should have received a copy of the GNU Affero General Public License
+-- along with this program. If not, see <https://www.gnu.org/licenses/>.
+  -->
+<EnclaveConfiguration>
+  <ProdID>0</ProdID>
+  <ISVSVN>0</ISVSVN>
+
+  <!-- If TCSMaxNum == TCSNum == TCSMinPool, there is no dynamic thread -->
+  <!-- If TCSMaxNum is omitted, it defaults to TCSNum -->
+  <!-- According to this setting, there are 10 static threads available -->
+  <TCSMaxNum>10</TCSMaxNum>
+  <TCSNum>10</TCSNum>
+  <TCSMinPool>10</TCSMinPool>
+
+  <TCSPolicy>1</TCSPolicy>
+
+  <!-- Since there's no dynamic thread, only StackMaxSize is relevant here -->
+  <StackMaxSize>0x40000</StackMaxSize>
+
+  <!-- When there's no gap between HeapMinSize and HeapInitSize, or between
+       HeapInitSize and HeapMaxSize, no dynamic heap expansion will occur. -->
+  <!-- In this case, the total available heap is 1 MB-->
+  <HeapMaxSize>0x100000</HeapMaxSize>
+  <HeapInitSize>0x100000</HeapInitSize>
+  <HeapMinSize>0x100000</HeapMinSize>
+
+  <!-- Recommend changing 'DisableDebug' to 1 to make the enclave undebuggable for enclave release -->
+  <DisableDebug>0</DisableDebug>
+  <MiscSelect>0</MiscSelect>
+  <MiscMask>0xFFFFFFFF</MiscMask>
+</EnclaveConfiguration>

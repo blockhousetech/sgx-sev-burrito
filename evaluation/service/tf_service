@@ -1,0 +1,12 @@
+#!/sbin/openrc-run
+
+name="TF service"
+description=""
+command="/root/tf_run.sh"
+command_args=""
+#command_user="user:user"
+
+depend() {
+    need networking 
+    need docker
+}

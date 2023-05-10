@@ -1,0 +1,12 @@
+{
+	"name": "sgx Docker",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "sgx_dev_env",
+	"shutdownAction": "stopCompose",
+	"workspaceFolder": "/home/dev/",
+	"settings": {
+		"terminal.integrated.shell.linux": null
+	},
+	"extensions": [
+	]
+}

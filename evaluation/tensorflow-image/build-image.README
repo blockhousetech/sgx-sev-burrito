@@ -1,0 +1,17 @@
+How the process of constructing and exporting a docker image works.
+
+To build a tensorflow image run the following with the appropriate tensorflow script:
+
+docker build --tag ${IMAGE_NAME} --build-arg  PYTHON_SCRIPT=${SCRIPT} .
+
+
+To export the image tar to be using by our sev machine use:
+
+docker save ${IMAGE_NAME} > ${IMAGE_NAME_TAR}
+
+
+The sev machine will use the following command to import it:
+
+docker load < ${IMAGE_NAME_TAR}
+
+

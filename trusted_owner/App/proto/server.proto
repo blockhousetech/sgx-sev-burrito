@@ -1,0 +1,80 @@
+// Burrito
+// Copyright (C) 2023 The Blockhouse Technology Limited (TBTL)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+syntax = "proto3";
+
+option objc_class_prefix = "ATR";
+
+package trustedowner;
+
+// The greeting service definition.
+service TrustedOwner {
+  // Sends a greeting
+  rpc DeployVm (DeployVmRequest) returns (DeployVmReply) {}
+  rpc ProvisionVm (ProvisionVmRequest) returns (ProvisionVmReply) {}
+  rpc GenerateReportForVm (GenerateReportForVmRequest) returns (GenerateReportForVmReply) {}
+}
+
+// The request message containing the user's name.
+message DeployVmRequest {
+  AmdCerts certs = 1;
+  MeasurementInfo info = 2;
+
+  message AmdCerts {
+    bytes ark = 1;
+    bytes ask = 2;
+    bytes cek = 3;
+    bytes oca = 4;
+    bytes pek = 5;
+    bytes pdh = 6;
+  }
+
+  message MeasurementInfo {
+    uint32  api_major = 1;
+    uint32  api_minor = 2;
+    uint32  build_id = 3;
+    uint32  policy = 4;
+    bytes  digest = 5;
+  }
+}
+
+message DeployVmReply {
+  bytes session_buffer = 1;
+  bytes godh_cert = 2;
+}
+
+// The request message containing the user's name.
+message ProvisionVmRequest {
+  bytes measurement = 1;
+  bytes mnonce = 2;
+}
+
+// The response message containing the greetings
+message ProvisionVmReply {
+  bytes secret_header = 1;
+  bytes secret_blob = 2;
+}
+
+// The request message containing the user's name.
+message GenerateReportForVmRequest {
+  bytes vm_data = 1;
+  bytes vm_data_hmac = 2;
+}
+
+// The response message containing the greetings
+message GenerateReportForVmReply {
+  bytes quote = 1;
+}

@@ -1,0 +1,61 @@
+#!/bin/bash
+
+INITRAMFS=$1
+ROOTTAR=$2
+INIT=$3
+NEWINITRAMFS=$4
+TEMPDIR=$(mktemp -d /tmp/mkinitfs.XXXXXX)
+
+function cleanup {
+  rm -rf "$TEMPDIR"
+  echo "Deleted temp diry $TEMPDIR"
+}
+
+function replace_if_match_line {
+  file=$1
+  lineno=$2
+  pattern=$3
+  newline=$4
+
+  echo $file
+  echo $pattern
+  echo $lineno
+  echo $newline
+
+  sed "${lineno}q;d" $file | grep -q "$pattern"
+  if [ $? -eq 0 ]; then
+    sed -i "${lineno}s/.*/${newline}/" init
+    echo "Line ${lineno} replaced by ${newline}"
+  else
+    echo "Unable to find pattern ${pattern} in line ${lineno}"
+  fi
+}
+
+tar -tf $ROOTTAR > /dev/null
+if [ $? -ne 0 ]; then
+  echo "The file $ROOTTAR does not appear to be a valid tar"
+  exit 1
+fi
+
+trap cleanup EXIT
+BASEDIR=$(realpath $(dirname "$0"))
+cd $TEMPDIR
+
+echo "Using temp dir $TEMPDIR"
+echo "Using base dir $BASEDIR"
+echo "Using root tar $ROOTTAR"
+
+gzip -dc $INITRAMFS | cpio -i
+echo "Copied initramfs contents to $TEMPDIR"
+
+cp init init_bak
+cp $BASEDIR/${INIT} init
+chmod +x init
+
+cp $ROOTTAR ./embedded_root.tar.gz
+echo "Copied $ROOTTAR to $TEMPDIR"
+
+# temp dir
+(find . | sort | cpio --quiet --renumber-inodes -o -H newc | $(command -v pigz 2>/dev/null || echo gzip) -9) > $BASEDIR/${NEWINITRAMFS}
+echo "New initramfs '${NEWINITRAMFS}' created at $BASEDIR"
+exit 0

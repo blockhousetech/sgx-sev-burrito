@@ -1,0 +1,41 @@
+##
+## Burrito
+## Copyright (C) 2023 The Blockhouse Technology Limited (TBTL)
+##
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU Affero General Public License as published
+## by the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU Affero General Public License for more details.
+##
+## You should have received a copy of the GNU Affero General Public License
+## along with this program. If not, see <https://www.gnu.org/licenses/>.
+##
+version: '3.7'
+services:
+  sgx_dev_env:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sgx_dev_env:latest
+    container_name: sgx_dev_env
+    volumes:
+      #- /home/ansible/remote-dev:/home/dev/workspace:delegated
+      - /home/mercury/alpine-test/burrito:/home/dev/burrito:delegated
+      - sgx_dev_env-extensions-01:/home/dev/.vscode-server/extensions:delegated
+      - sgx_dev_env-extensions-02:/home/dev/.vscode-server-insiders/extensions:delegated
+      #- /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket
+    ports:
+      - "50051:50051"
+    # devices:
+    #  - "/dev/sgx_enclave:/dev/sgx_enclave"
+    #  - "/dev/sgx_provision:/dev/sgx_provision"
+
+
+volumes:
+  sgx_dev_env-extensions-01:
+  sgx_dev_env-extensions-02:

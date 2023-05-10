@@ -1,0 +1,79 @@
+/*
+ * Burrito
+ * Copyright (C) 2023 The Blockhouse Technology Limited (TBTL)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#ifndef AMDCERT_H
+#define AMDCERT_H
+
+#include "sevapi.h"
+#include "sevcore.h"    // for SEVDevice
+#include <string>
+
+constexpr uint32_t AMD_CERT_VERSION       = 0x01;
+constexpr uint32_t AMD_CERT_ID_SIZE_BYTES = 16;      // sizeof(amd_cert:key_id_0 + amd_cert:key_id_1)
+constexpr uint32_t AMD_CERT_KEY_BITS_2K   = 2048;
+constexpr uint32_t AMD_CERT_KEY_BITS_4K   = 4096;
+constexpr uint32_t AMD_CERT_KEY_BYTES_4K  = (AMD_CERT_KEY_BITS_4K/8);
+
+static constexpr uint8_t amd_root_key_id_naples[AMD_CERT_ID_SIZE_BYTES] = {
+        0x1b, 0xb9, 0x87, 0xc3, 0x59, 0x49, 0x46, 0x06,
+        0xb1, 0x74, 0x94, 0x56, 0x01, 0xc9, 0xea, 0x5b,
+};
+static constexpr uint8_t amd_root_key_id_rome[AMD_CERT_ID_SIZE_BYTES] = {
+        0xe6, 0x00, 0x21, 0x22, 0xfb, 0x58, 0x41, 0x93,
+        0x99, 0xd1, 0x5f, 0xee, 0x7b, 0x13, 0x13, 0x51
+};
+static constexpr uint8_t amd_root_key_id_milan[AMD_CERT_ID_SIZE_BYTES] = {
+        0x94, 0xC3, 0x8E, 0x41, 0x77, 0xD0, 0x47, 0x92,
+        0x92, 0xA7, 0xAE, 0x67, 0x1D, 0x08, 0x3F, 0xB6
+};
+
+// Public global functions
+static std::string amd_empty = "NULL";
+void print_amd_cert_readable(const amd_cert *cert, std::string &out_str = amd_empty);
+
+class AMDCert {
+private:
+    SEV_ERROR_CODE amd_cert_validate_sig(const amd_cert *cert,
+                                         const amd_cert *parent,
+                                         ePSP_DEVICE_TYPE device_type);
+    SEV_ERROR_CODE amd_cert_validate_common(const amd_cert *cert);
+    bool usage_is_valid(AMD_SIG_USAGE usage);
+    SEV_ERROR_CODE amd_cert_validate(const amd_cert *cert,
+                                     const amd_cert *parent,
+                                     AMD_SIG_USAGE expected_usage,
+                                     ePSP_DEVICE_TYPE device_type);
+    SEV_ERROR_CODE amd_cert_public_key_hash(const amd_cert *cert,
+                                            hmac_sha_256 *hash);
+    // Retrieves information on device type (naples/rome/milan...) based on key id
+    ePSP_DEVICE_TYPE get_device_type(const amd_cert *ark);
+
+public:
+    AMDCert() {}
+    ~AMDCert() {};
+
+    bool key_size_is_valid(size_t size);
+    SEV_ERROR_CODE amd_cert_validate_ark(const amd_cert *ark);
+    SEV_ERROR_CODE amd_cert_validate_ask(const amd_cert *ask,
+                                         const amd_cert *ark);
+    size_t amd_cert_get_size(const amd_cert *cert);
+    SEV_ERROR_CODE amd_cert_export_pub_key(const amd_cert *cert,
+                                           sev_cert *pub_key_cert);
+    SEV_ERROR_CODE amd_cert_init(amd_cert *cert, const uint8_t *buffer);
+};
+
+#endif /* AMDCERT_H */

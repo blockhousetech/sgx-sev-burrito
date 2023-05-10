@@ -1,0 +1,43 @@
+==============================================================================
+summary of summaries:
+
+analyzed: burrito.spthy
+
+  output:          burrito_analyzed.spthy
+  processing time: 18.81967997s
+  lm_sev_amd_rot_ltk_secrecy (all-traces): verified (5 steps)
+  lm_sev_psp_ltk_secrecy (all-traces): verified (5 steps)
+  lm_sev_enclave_secrets_secrecy (all-traces): verified (1478 steps)
+  lm_sev_guest_secret_secrecy_weak (all-traces): verified (976 steps)
+  lm_sev_guest_secret_secrecy (all-traces): verified (1039 steps)
+  lm_sev_public_key_agreement (all-traces): verified (1082 steps)
+  lm_sgx_intel_rot_ltk_secrecy (all-traces): verified (5 steps)
+  lm_sgx_qe_ltk_secrecy (all-traces): verified (5 steps)
+  lm_sgx_rp_qe_ltk_authenticity (all-traces): verified (337 steps)
+  lm_sgx_rp_qe_ltk_secrecy (all-traces): verified (520 steps)
+  lm_sgx_quote_authenticity_weak (all-traces): verified (426 steps)
+  lm_sgx_quote_authenticity (all-traces): verified (452 steps)
+  lm_burrito_quote_integrity_weak (all-traces): verified (18 steps)
+  lm_burrito_quote_integrity_strong (all-traces): verified (18 steps)
+  ex_can_generate_burrito_quote (exists-trace): analysis incomplete (1 steps)
+  ex_can_verify_quote_created_by_adversary (exists-trace): analysis incomplete (1 steps)
+  ex_adversary_can_launch_sev_guest (exists-trace): analysis incomplete (1 steps)
+  ex_adversary_can_launch_sev_guest_and_extract_secret (exists-trace): analysis incomplete (1 steps)
+  ex_can_launch_sev_guest_without_adversary (exists-trace): analysis incomplete (1 steps)
+  should_fail_lm_sgx_quote_authenticity_1 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_sgx_quote_authenticity_2 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_sgx_quote_authenticity_3 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_sgx_quote_authenticity_4 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_sev_guest_secret_secrecy_1 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_sev_guest_secret_secrecy_2 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_sev_guest_secret_secrecy_3 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_sev_guest_secret_secrecy_4 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_burrito_quote_integrity_1 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_burrito_quote_integrity_2 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_burrito_quote_integrity_3 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_burrito_quote_integrity_4 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_burrito_quote_integrity_5 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_burrito_quote_integrity_6 (all-traces): analysis incomplete (1 steps)
+  should_fail_lm_burrito_quote_integrity_7 (all-traces): analysis incomplete (1 steps)
+
+==============================================================================

@@ -1,0 +1,858 @@
+theory burrito
+
+begin
+
+builtins: signing, hashing, symmetric-encryption, diffie-hellman
+
+// Intel Root of Trust
+// ===================
+
+rule Intel_RoT_Initialize[color=#ffbf00]:
+  [
+    Fr(~intel_rot_ltk)
+  ]--[
+    Intel_RoT_Initialize()
+    , Intel_RoT_Key(~intel_rot_ltk)
+  ]->[
+    Out(pk(~intel_rot_ltk))
+    , !Intel_RoT_Pk(pk(~intel_rot_ltk))
+    , !Intel_RoT_Ltk(~intel_rot_ltk)
+  ]
+
+
+// QE_CSR fact abstractly models platform setup and provisioning steps -- QE
+// uses it to securely send its public key to the Intel RoT for certification.
+
+rule Intel_RoT_Certify[color=#ffbf00]:
+  let
+    cert_data = <'sgx_cert', qek_pk, ~ppid>
+    sgx_platform_cert = <cert_data, sign(cert_data, ~intel_rot_ltk)>
+  in
+  [
+    QE_CSR(~ppid, platform_data, qek_pk)
+    , !Intel_RoT_Ltk(~intel_rot_ltk)
+  ]--[
+    Intel_RoT_Certify(sgx_platform_cert)
+  ]->[
+    Out(sgx_platform_cert)
+  ]
+
+// SGX Quoting Enclave
+// ===================
+
+rule SGX_QE_Initialize[color=#e83f6f]:
+  let
+    platform_data = <~ppid>
+  in
+  [
+    Fr(~ppid)
+    , Fr(~qe_ltk)
+  ]--[
+    SGX_QE_Initialize()
+    , SGX_QE_Ltk(~ppid, ~qe_ltk)
+  ]->[
+    Out(~ppid)
+    , Out(platform_data)
+    , Out(pk(~qe_ltk))
+    , QE_CSR(~ppid, platform_data, pk(~qe_ltk))
+    , !QE_Ltk(~ppid, platform_data, ~qe_ltk)
+    , !SGX_Platform_Initialied(~ppid)
+  ]
+
+// Quote_Request fact abstractly models local attestation -- honest parties
+// use it to obtain quotes from QE running on the platform with the same 
+// ppid. Adversary can use it to requests quotes as well.
+
+rule SGX_QE_Generate_Quote[color=#e83f6f]:
+  let
+    quote_content = <'sgx_quote', $measurement, platform_data, report_data> 
+    quote = <quote_content, sign(quote_content, ~qe_ltk)> 
+  in 
+  [
+    !QE_Ltk(~ppid, platform_data, ~qe_ltk)
+    , Quote_Request(~ppid, $measurement, report_data)
+  ]--[
+    SGX_QE_Generate_Quote(quote)
+  ]->[
+    Out(quote)
+  ]
+
+// AMD Root of Trust
+// =================
+
+rule AMD_RoT_Initialize[color=#32936f]:
+[
+  Fr(~amd_rot_ltk)
+]--[
+  AMD_RoT_Initialize()
+  , AMD_RoT_Key(~amd_rot_ltk)
+]->[
+  Out(pk(~amd_rot_ltk))
+  , !AMD_RoT_Pk(pk(~amd_rot_ltk))
+  , !AMD_RoT_Ltk(~amd_rot_ltk)
+]
+
+
+// PSP_CSR fact abstractly models platform setup and provisioning steps -- PSP
+// uses it to securely send its public key to the Intel RoT for certification.
+
+rule AMD_RoT_Certify[color=#32936f]:
+let
+  cert_data = <'sev_cert', psp_sn_pk>
+  sev_platform_cert = <cert_data, sign(cert_data, ~amd_rot_ltk)>
+in
+[
+  PSP_CSR(~cpu_id, psp_sn_pk)
+  , !AMD_RoT_Ltk(~amd_rot_ltk)
+]--[
+  AMD_RoT_Certify(sev_platform_cert)
+]->[
+  Out(sev_platform_cert)
+]
+
+// SEV PSP
+// =======
+
+rule SEV_PSP_Initialize[color=#2a848a]:
+  let
+    psp_sn_pk = 'g' ^ ~psp_sn
+  in
+  [
+    Fr(~cpu_id)
+    , Fr(~psp_sn)
+  ]--[
+    SEV_PSP_Initialize()
+    , SEV_PSP_Ltk(~cpu_id, ~psp_sn, psp_sn_pk)
+  ]->[
+    Out(psp_sn_pk)
+    , PSP_CSR(~cpu_id, psp_sn_pk)
+    , !PSP_Ltk(~cpu_id, ~psp_sn)
+    , !PSP_Pk(~cpu_id, psp_sn_pk)
+  ]
+
+rule SEV_PSP_Initialize_Guest[color=#2a848a]:
+  let
+    // In
+    sd = go_sn_pk ^ ~psp_sn
+    kek = h(<'sev_kek', sd>)
+    kik = h(<'sev_kik', sd>)
+    msg_content = <'transport_keys', ~tek, ~tik>
+    blob = senc(msg_content, kek)
+    mac = h(<msg_content, kik>)
+    deploy_package = <go_sn_pk, blob, mac, $vm_dig>
+    // Out
+    dig = $vm_dig
+    measure = h(<'launch_measurement', ~mnonce, dig, ~tik>)
+    measurement_package = <~mnonce, measure>
+  in
+  [
+    In(deploy_package)
+    , !PSP_Ltk(~cpu_id, ~psp_sn)
+    , !PSP_Pk(~cpu_id, psp_sn_pk)
+    , Fr(~mnonce)
+  ]--[
+    SEV_PSP_Initialize_Guest()
+  ]->[
+    SEV_PSP_Guest_Initialized(~cpu_id, psp_sn_pk, ~tek, ~tik, $vm_dig, measure)
+    , Out(measurement_package)
+  ]
+
+rule SEV_PSP_Launch_Guest[color=#2a848a]:
+  let
+    // In
+    msg_content = <'launch_secret', measure, ~guest_secret>
+    blob = senc(msg_content, ~tek)
+    tag = h(<msg_content, ~tik>)
+    launch_guest_request = <blob, tag>
+  in
+  [
+    In(launch_guest_request)
+    , SEV_PSP_Guest_Initialized(~cpu_id, psp_sn_pk, ~tek, ~tik, $vm_dig, measure)
+  ]--[
+    SEV_PSP_Launch_Guest()
+    , SEV_PSP_Secrets(psp_sn_pk, ~tik, ~guest_secret)
+  ]->[
+    !SEV_PSP_Guest_Running(~cpu_id, psp_sn_pk, $vm_dig, ~guest_secret)
+  ]
+  
+// Burrito Guest Owner Enclave
+// ===========================
+
+rule TO_Enclave_Verify_Platform_Cert[color=#2274a5]:
+  let
+    cert_data = <'sev_cert', psp_sn_pk>
+    sev_platform_cert = <cert_data, sign(cert_data, ~amd_rot_ltk)>
+  in
+  [
+    !AMD_RoT_Pk(pk(~amd_rot_ltk))
+    , In(sev_platform_cert)
+  ]--[
+    TO_Enclave_Verify_Platform_Cert(sev_platform_cert)
+  ]->[
+    Platform_PK_Verified(psp_sn_pk)
+  ]
+
+// Corresponds to 
+// int ecall_deploy_vm(
+//    sev_certs_t certs, 
+//    measurement_info_t measurement_info,
+//    sev_session_buf* out_session_data_buf,
+//    sev_cert* out_godh_pubkey_cert
+// )
+// certs.cek.pub_key.ecdsa <-> psp_sn_pk
+// measurement_info.digest <-> $vm_dig
+// 
+rule TO_Enclave_Deploy_VM[color=#2274a5]:
+  let
+    go_sn_pk = 'g' ^ ~go_sn
+    sd = psp_sn_pk ^ ~go_sn
+    kek = h(<'sev_kek', sd>)
+    kik = h(<'sev_kik', sd>)
+    msg_content = <'transport_keys', ~tek, ~tik>
+    blob = senc(msg_content, kek)
+    mac = h(<msg_content, kik>)
+    deploy_package = <go_sn_pk, blob, mac, $vm_dig>
+  in
+  [
+    !SGX_Platform_Initialied(~ppid)
+    , Platform_PK_Verified(psp_sn_pk)
+    , In($vm_dig)
+    , Fr(~go_sn)
+    , Fr(~tek)
+    , Fr(~tik)
+  ]--[
+    TO_Enclave_Deploy_VM()
+    , TO_Enclave_Secrets(psp_sn_pk, sd, kek, kik, ~tek, ~tik)
+  ]->[
+    Out(deploy_package)
+    , TO_Enclave_VM_Deployed(psp_sn_pk, ~ppid, ~tek, ~tik, $vm_dig)
+  ]
+
+// Corresponds to:
+// int ecall_provision_vm(
+//    uint8_t hmac_measurement[32],
+//    nonce_128* mnonce,
+//    sev_hdr_buf* out_packaged_secret_header,
+//    uint8_t out_encrypted_blob[SECRET_BLOB_LEN],
+//    measurement_info_t* out_info
+// )
+// hmac_measurement <-> measure_mac
+// mnonce <-> mnonce
+//
+rule TO_Enclave_Provision_VM[color=#2274a5]:
+  let
+    // In
+    msr = <~mnonce, $vm_dig>
+    measure_mac = h(<'launch_measurement', ~mnonce, $vm_dig, ~tik>)
+    measurement_package = <~mnonce, measure_mac>
+    // Out
+    msg_content = <'launch_secret', measure_mac, ~cik>
+    blob = senc(msg_content, ~tek)
+    tag = h(<msg_content, ~tik>)
+    launch_guest_request = <blob, tag>
+  in
+  [
+    TO_Enclave_VM_Deployed(psp_sn_pk, ~ppid, ~tek, ~tik, $vm_dig)
+    , In(measurement_package)
+    , Fr(~cik)
+  ]--[
+    TO_Enclave_Provision_VM(psp_sn_pk, ~cik, $vm_dig)
+    , TO_Enclave_Guest_Secrets(psp_sn_pk, ~tik, ~cik)
+  ]->[
+    Out(launch_guest_request)
+    , TO_Enclave_VM_Provisioned(psp_sn_pk, ~ppid, msr, ~cik)
+  ]
+
+
+// Corresponds to:
+// int ecall_generate_report_for_vm(
+//    uint8_t vm_data[64],
+//    hmac_sha_256* vm_data_hmac,
+//    sgx_target_info_t* qe_target_info,
+//    sgx_report_t* out_sgx_report
+// )
+// vm_data <-> vm_data
+// vm_data_hmac <-> mac
+// cek <-> pnp_sk_pk
+//
+rule TO_Enclave_Generate_Report_For_VM[color=#2274a5]:
+  let
+    // In
+    mac = h(<'report_request', vm_data, ~cik>)
+    report_request = <vm_data, mac>
+    // Out
+    report_data = h(<'report_data', psp_sn_pk, msr, vm_data>)
+  in
+  [
+    TO_Enclave_VM_Provisioned(psp_sn_pk, ~ppid, msr, ~cik)
+    , In(report_request)
+  ]--[
+    TO_Enclave_Generate_Report_For_VM(~ppid, psp_sn_pk, msr, vm_data)
+  ]->[
+    Quote_Request(~ppid, 'burrito_enclave_sgx_measurement', report_data)
+  ]
+
+// Guest VM
+// ========
+
+rule Guest_VM_Request_Report[color=#4C5454]:
+  let 
+    data = <'burrito_report', ~timestamp>
+    tag = h(<'report_request', data, ~cik>)
+    report_request = <data, tag>
+  in
+  [
+    !SEV_PSP_Guest_Running(~cpu_id, psp_sn_pk, 'burrito_guest_vm', ~cik)
+    , Fr(~timestamp)
+  ]--[
+    Guest_VM_Request_Report(psp_sn_pk, ~timestamp)
+  ]->[
+    Out(report_request)
+  ]
+
+// Relying party
+// =============
+
+rule RP_Verify_Quote[color=#99c9b7]:
+  let
+    platform_data = <~ppid>
+    qek_pk = pk(~qe_ltk)
+    cert_data = <'sgx_cert', qek_pk, ~ppid>
+    sgx_platform_cert = <cert_data, sign(cert_data, ~intel_rot_ltk)>
+    quote_content = <'sgx_quote', $measurement, platform_data, report_data> 
+    quote = <quote_content, sign(quote_content, ~qe_ltk)> 
+  in
+  [
+    !Intel_RoT_Pk(pk(~intel_rot_ltk))
+    , In(<quote, sgx_platform_cert>)
+  ]--[
+    RP_Verify_Quote(quote_content)
+    , RP_QE_Ltk(~qe_ltk, ~ppid)
+  ]->[
+  ]
+
+// Adversary
+// =========
+
+rule Compromise_Intel_RoT[color=#f5b7b1]:
+  [
+    !Intel_RoT_Ltk(~intel_rot_ltk)
+  ]--[
+    Compromise_Intel_RoT()
+  ]->[
+    Out(~intel_rot_ltk)
+  ]
+
+rule Compromise_SGX_QE[color=#f5b7b1]:
+  [
+    !QE_Ltk(~ppid, platform_data, ~qe_ltk)
+  ]--[
+    Compromise_SGX_QE(~ppid)
+  ]->[
+    Out(~qe_ltk)
+  ]
+
+rule Adversary_Request_Quote[color=#f5b7b1]:
+  [
+    In(<~ppid, $sgx_measurement, report_data>)
+  ]--[
+    Neq($sgx_measurement, 'burrito_enclave_sgx_measurement')
+    , Adversary_Request_Quote()
+  ]->[
+    Quote_Request(~ppid, $sgx_measurement, report_data)
+  ]
+
+rule Compromise_AMD_RoT[color=#f5b7b1]:
+  [
+    !AMD_RoT_Ltk(~amd_rot_ltk)
+  ]--[
+    Compromise_AMD_RoT()
+  ]->[
+    Out(~amd_rot_ltk)
+  ]
+
+rule Compromise_SEV_PSP[color=#f5b7b1]:
+  [
+    !PSP_Ltk(~cpu_id, ~psp_sn)
+    , !PSP_Pk(~cpu_id, psp_pk)
+  ]--[
+    Compromise_SEV_PSP(psp_pk)
+  ]->[
+    Out(~psp_sn)
+  ]
+
+rule Adversary_Extract_SEV_Secret[color=#f5b7b1]:
+  [
+    !SEV_PSP_Guest_Running(~cpu_id, psp_sn_pk, $vm_dig, ~guest_secret)
+  ]--[
+    Neq($vm_dig, 'burrito_guest_vm')
+    , Adversary_Extract_SEV_Secret($vm_dig, ~guest_secret)
+  ]->[
+    Out(~guest_secret)
+  ]
+
+// Model restrictions
+// ==================
+
+restriction Inequality:
+  "All x #i. Neq(x, x) @ #i ==> F"
+
+restriction Intel_RoT_Initializes_Once:
+  "All #i #j.
+    (Intel_RoT_Initialize() @ i & Intel_RoT_Initialize() @ j) ==> (#i = #j)
+  "
+restriction AMD_RoT_Initializes_Once:
+  "All #i #j.
+    (AMD_RoT_Initialize() @ i & AMD_RoT_Initialize() @ j) ==> (#i = #j)
+  "
+
+// Simplifying restrictions for easier development
+// ===============================================
+
+#ifdef SIMPLE
+
+restriction One_QE:
+  "All #i #j. (SGX_QE_Initialize() @ i & SGX_QE_Initialize() @ j) ==> (#i = #j)"
+
+restriction One_PSP:
+  "All #i #j. (SEV_PSP_Initialize() @ i & SEV_PSP_Initialize() @ j) ==> (#i = #j)"
+
+restriction One_PSP_Guest:
+  "All #i #j. (SEV_PSP_Initialize_Guest() @ i & SEV_PSP_Initialize_Guest() @ j) ==> (#i = #j)"
+
+restriction One_GO:
+  "All c1 c2 #i #j. (TO_Enclave_Verify_Platform_Cert(c1) @ i & TO_Enclave_Verify_Platform_Cert(c2) @ j) ==> (#i = #j)"
+
+restriction One_RP:
+  "All q1 q2 #i #j. (RP_Verify_Quote(q1) @ i & RP_Verify_Quote(q2) @ j) ==> (#i = #j)"
+
+restriction One_VM:
+  "All t1 t2 k1 k2 #i #j. (Guest_VM_Request_Report(k1, t1) @ i & Guest_VM_Request_Report(k2, t2) @ j) ==> (#i = #j)"
+
+#endif
+
+// Useful properties
+// =================
+
+
+lemma lm_sev_amd_rot_ltk_secrecy[reuse, heuristic=C]:
+  "All ltk #i. 
+    AMD_RoT_Key(ltk) @ i
+    ==>
+    (
+      (not Ex #j. KU(ltk) @ j)
+      | (Ex #j. Compromise_AMD_RoT() @ j)
+    )
+  "
+
+lemma lm_sev_psp_ltk_secrecy[reuse, heuristic=C]:
+  "All cpuid ltk ltk_pk #i.
+    SEV_PSP_Ltk(cpuid, ltk, ltk_pk) @ i
+    ==>
+    (
+      (not Ex #j. KU(ltk) @ j)
+      | (Ex #j. Compromise_SEV_PSP(ltk_pk) @ j )
+    )
+  "
+
+lemma lm_sev_enclave_secrets_secrecy[reuse, heuristic=C]:
+  "All k ss kek kik tek tik #i.
+    TO_Enclave_Secrets(k, ss, kek, kik, tek, tik) @ i
+    ==>
+    (
+      (
+        (not Ex #j. KU(ss) @ j)
+        & (not Ex #j. KU(kek) @ j)
+        & (not Ex #j. KU(kik) @ j)
+        & (not Ex #j. KU(tek) @ j)
+        & (not Ex #j. KU(tik) @ j)
+      )
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  "
+
+lemma lm_sev_guest_secret_secrecy_weak[heuristic=C]:
+  "All k s #i. 
+    TO_Enclave_Provision_VM(k, s, 'burrito_guest_vm') @ i 
+    ==> 
+    (
+      (not Ex #j. KU(s) @ j)
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex k1 #j. Compromise_SEV_PSP(k1) @ j )
+    )
+  " 
+
+lemma lm_sev_guest_secret_secrecy[reuse, heuristic=C]:
+  "All k s #i. 
+    TO_Enclave_Provision_VM(k, s, 'burrito_guest_vm') @ i 
+    ==> 
+    (
+      (not Ex #j. KU(s) @ j)
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  " 
+
+lemma lm_sev_public_key_agreement[reuse, heuristic=C]:
+  "All k1 k2 t s #i #j. 
+    (TO_Enclave_Guest_Secrets(k1, t, s) @ i & SEV_PSP_Secrets(k2, t, s) @ j)
+    ==> 
+      (k1 = k2)
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex #j. Compromise_SEV_PSP(k1) @ j)
+  "
+
+lemma lm_sgx_intel_rot_ltk_secrecy[reuse, heuristic=C]: 
+  "All ltk #i. 
+    Intel_RoT_Key(ltk) @ i
+    ==>
+    (
+      (not Ex #j. KU(ltk) @ j)
+      | (Ex #j. Compromise_Intel_RoT() @ j)
+    )
+  "
+      
+lemma lm_sgx_qe_ltk_secrecy[reuse, heuristic=C]:
+  "All ppid ltk #i.
+    SGX_QE_Ltk(ppid, ltk) @ i
+    ==>
+    (
+      (not Ex #j. KU(ltk) @ j)
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+    )
+  "
+      
+lemma lm_sgx_rp_qe_ltk_authenticity[reuse, heuristic=C]:
+  "All ltk ppid #i.
+    RP_QE_Ltk(ltk, ppid) @ i  
+    ==>
+    (
+      (Ex #j. SGX_QE_Ltk(ppid, ltk) @ j)
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+    )
+  "
+
+lemma lm_sgx_rp_qe_ltk_secrecy[reuse, heuristic=C]:
+  "All ltk ppid #i.
+    RP_QE_Ltk(ltk, ppid) @ i
+    ==>
+    (
+      (not Ex #j. KU(ltk) @ j)
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j)
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+    )
+  "
+
+lemma lm_sgx_quote_authenticity_weak[heuristic=C]:
+  "All ppid #i rd. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, rd>) @ i
+    ==>
+    (
+      (Ex v d k #j. rd = h(<'report_data', k, d, v>) & TO_Enclave_Generate_Report_For_VM(ppid, k, d, v) @ j )
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+      | (Ex ppid_1 #j. Compromise_SGX_QE(ppid_1) @ j )
+    )
+  "
+
+lemma lm_sgx_quote_authenticity[reuse, heuristic=C]:
+  "All ppid #i rd. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, rd>) @ i
+    ==>
+    (
+      (Ex v d k #j. rd = h(<'report_data', k, d, v>) & TO_Enclave_Generate_Report_For_VM(ppid, k, d, v) @ j )
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+    )
+  "
+
+// Main reults
+// ===========
+
+lemma lm_burrito_quote_integrity_weak[
+  heuristic=o "oracle.py",
+  hide_lemma=lm_sev_enclave_secrets_secrecy, 
+  hide_lemma=lm_sev_psp_ltk_secrecy,
+  hide_lemma=lm_sev_amd_rot_ltk_secrecy,
+  hide_lemma=lm_sgx_intel_rot_ltk_secrecy,
+  hide_lemma=lm_sgx_qe_ltk_secrecy,
+  hide_lemma=lm_sgx_rp_qe_ltk_authenticity,
+  hide_lemma=lm_sgx_rp_qe_ltk_secrecy
+]:
+  "All ppid d k m #i. 
+  RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, h(<'report_data', k, <m, 'burrito_guest_vm'>, d>)>) @ i
+  ==>
+  (
+    (
+      Ex ts #j. 
+        d = <'burrito_report', ts>
+        & Guest_VM_Request_Report(k, ts) @ j
+    )
+    | (Ex #j. Compromise_Intel_RoT() @ j )
+    | (Ex ppid1 #j. Compromise_SGX_QE(ppid1) @ j )
+    | (Ex #j. Compromise_AMD_RoT() @ j )
+    | (Ex k1 #j. Compromise_SEV_PSP(k1) @ j )
+  )
+"
+
+lemma lm_burrito_quote_integrity_strong[
+  heuristic=o "oracle.py",
+  hide_lemma=lm_sev_enclave_secrets_secrecy, 
+  hide_lemma=lm_sev_psp_ltk_secrecy,
+  hide_lemma=lm_sev_amd_rot_ltk_secrecy,
+  hide_lemma=lm_sgx_intel_rot_ltk_secrecy,
+  hide_lemma=lm_sgx_qe_ltk_secrecy,
+  hide_lemma=lm_sgx_rp_qe_ltk_authenticity,
+  hide_lemma=lm_sgx_rp_qe_ltk_secrecy
+]:
+  "All ppid d k m #i. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, h(<'report_data', k, <m, 'burrito_guest_vm'>, d>)>) @ i
+    ==>
+    (
+      (
+        Ex ts #j. 
+          d = <'burrito_report', ts>
+          & Guest_VM_Request_Report(k, ts) @ j
+      )
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  "
+
+// Executable lemmas
+// =================
+
+lemma ex_can_generate_burrito_quote:
+  exists-trace
+    "Ex ppid k ts m #i #j. 
+      RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, h(<'report_data', k, <m, 'burrito_guest_vm'>, <'burrito_report', ts>>)>) @ i
+      & Guest_VM_Request_Report(k, ts) @ j
+      & (not Ex #j. Compromise_Intel_RoT() @ j )
+      & (not Ex #j. Compromise_SGX_QE(ppid) @ j )
+      & (not Ex #j. Compromise_AMD_RoT() @ j )
+      & (not Ex #j. Compromise_SEV_PSP(k) @ j )
+  "
+
+lemma ex_can_verify_quote_created_by_adversary:
+  exists-trace
+    "Ex ppid #i. RP_Verify_Quote(<'sgx_quote', 'arbitrary_sgx_measurement', ppid, 'arbitrary_data'>) @ i"
+
+lemma ex_adversary_can_launch_sev_guest:
+  exists-trace
+    "(Ex #i. SEV_PSP_Launch_Guest() @ i)   
+      & (not Ex #j. Compromise_AMD_RoT() @ j)
+      & (not Ex c #j. TO_Enclave_Verify_Platform_Cert(c) @ j)
+    "
+
+lemma ex_adversary_can_launch_sev_guest_and_extract_secret:
+  exists-trace
+    "(Ex s #i. Adversary_Extract_SEV_Secret('arbitrary_vmc', s) @ i)   
+      & (not Ex #j. Compromise_AMD_RoT() @ j)
+    "
+
+lemma ex_can_launch_sev_guest_without_adversary:
+  exists-trace
+    "(Ex #i. SEV_PSP_Launch_Guest() @ i)
+      & (not Ex #j. Compromise_AMD_RoT() @ j)
+      & (not Ex k #j. Compromise_SEV_PSP(k) @ j)
+    "
+
+// Sanity checking lemmas
+// ======================
+
+
+lemma should_fail_lm_sgx_quote_authenticity_1[heuristic=C]:
+  "All ppid #i rd. 
+    RP_Verify_Quote(<'sgx_quote', 'fake_burrito_enclave_sgx_measurement', ppid, rd>) @ i
+    ==>
+    (
+      (Ex v d k #j. rd = h(<'report_data', k, d, v>) & TO_Enclave_Generate_Report_For_VM(ppid, k, d, v) @ j )
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+    )
+  "
+
+lemma should_fail_lm_sgx_quote_authenticity_2[heuristic=C]:
+  "All ppid #i rd. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, rd>) @ i
+    ==>
+    (
+      (Ex #j. Compromise_Intel_RoT() @ j )
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+    )
+  "
+
+lemma should_fail_lm_sgx_quote_authenticity_3[heuristic=C]:
+  "All ppid #i rd. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, rd>) @ i
+    ==>
+    (
+      (Ex v d k #j. rd = h(<'report_data', k, d, v>) & TO_Enclave_Generate_Report_For_VM(ppid, k, d, v) @ j )
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+    )
+  "
+
+lemma should_fail_lm_sgx_quote_authenticity_4[heuristic=C]:
+  "All ppid #i rd. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, rd>) @ i
+    ==>
+    (
+      (Ex v d k #j. rd = h(<'report_data', k, d, v>) & TO_Enclave_Generate_Report_For_VM(ppid, k, d, v) @ j )
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+    )
+  "
+
+lemma should_fail_lm_sev_guest_secret_secrecy_1[heuristic=C]:
+  "All k s #i. 
+    TO_Enclave_Provision_VM(k, s, 'fake_burrito_guest_vm') @ i 
+    ==> 
+    (
+      (not Ex #j. KU(s) @ j)
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  " 
+
+lemma should_fail_lm_sev_guest_secret_secrecy_2[heuristic=C]:
+  "All k s #i. 
+    TO_Enclave_Provision_VM(k, s, 'burrito_guest_vm') @ i 
+    ==> 
+    (
+      (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  " 
+
+lemma should_fail_lm_sev_guest_secret_secrecy_3[heuristic=C]:
+  "All k s #i. 
+    TO_Enclave_Provision_VM(k, s, 'burrito_guest_vm') @ i 
+    ==> 
+    (
+      (not Ex #j. KU(s) @ j)
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  " 
+
+lemma should_fail_lm_sev_guest_secret_secrecy_4[heuristic=C]:
+  "All k s #i. 
+    TO_Enclave_Provision_VM(k, s, 'burrito_guest_vm') @ i 
+    ==> 
+    (
+      (not Ex #j. KU(s) @ j)
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+    )
+  " 
+
+lemma should_fail_lm_burrito_quote_integrity_1[heuristic=o "oracle.py"]:
+  "All ppid d k m #i. 
+    RP_Verify_Quote(<'sgx_quote', 'fake_burrito_enclave_sgx_measurement', ppid, h(<'report_data', k, <m, 'burrito_guest_vm'>, d>)>) @ i
+    ==>
+    (
+      (
+        Ex ts #j. 
+          d = <'burrito_report', ts>
+          & Guest_VM_Request_Report(k, ts) @ j
+      )
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  "
+
+lemma should_fail_lm_burrito_quote_integrity_2[heuristic=o "oracle.py"]:
+  "All ppid d k m #i. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, h(<'report_data', k, <m, 'fake_burrito_guest_vm'>, d>)>) @ i
+    ==>
+    (
+      (
+        Ex ts #j. 
+          d = <'burrito_report', ts>
+          & Guest_VM_Request_Report(k, ts) @ j
+      )
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  "
+
+lemma should_fail_lm_burrito_quote_integrity_3[heuristic=o "oracle.py"]:
+  "All ppid d k m #i. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, h(<'report_data', k, <m, 'burrito_guest_vm'>, d>)>) @ i
+    ==>
+    (
+      (Ex #j. Compromise_Intel_RoT() @ j )
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  "
+
+lemma should_fail_lm_burrito_quote_integrity_4[heuristic=o "oracle.py"]:
+  "All ppid d k m #i. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, h(<'report_data', k, <m, 'burrito_guest_vm'>, d>)>) @ i
+    ==>
+    (
+      (
+        Ex ts #j. 
+          d = <'burrito_report', ts>
+          & Guest_VM_Request_Report(k, ts) @ j
+      )
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  "
+
+lemma should_fail_lm_burrito_quote_integrity_5[heuristic=o "oracle.py"]:
+  "All ppid d k m #i. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, h(<'report_data', k, <m, 'burrito_guest_vm'>, d>)>) @ i
+    ==>
+    (
+      (
+        Ex ts #j. 
+          d = <'burrito_report', ts>
+          & Guest_VM_Request_Report(k, ts) @ j
+      )
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  "
+
+lemma should_fail_lm_burrito_quote_integrity_6[heuristic=o "oracle.py"]:
+  "All ppid d k m #i. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, h(<'report_data', k, <m, 'burrito_guest_vm'>, d>)>) @ i
+    ==>
+    (
+      (
+        Ex ts #j. 
+          d = <'burrito_report', ts>
+          & Guest_VM_Request_Report(k, ts) @ j
+      )
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+      | (Ex #j. Compromise_SEV_PSP(k) @ j )
+    )
+  "
+
+lemma should_fail_lm_burrito_quote_integrity_7[heuristic=o "oracle.py"]:
+  "All ppid d k m #i. 
+    RP_Verify_Quote(<'sgx_quote', 'burrito_enclave_sgx_measurement', ppid, h(<'report_data', k, <m, 'burrito_guest_vm'>, d>)>) @ i
+    ==>
+    (
+      (
+        Ex ts #j. 
+          d = <'burrito_report', ts>
+          & Guest_VM_Request_Report(k, ts) @ j
+      )
+      | (Ex #j. Compromise_Intel_RoT() @ j )
+      | (Ex #j. Compromise_SGX_QE(ppid) @ j )
+      | (Ex #j. Compromise_AMD_RoT() @ j )
+    )
+  "
+
+end

@@ -1,0 +1,43 @@
+==============================================================================
+summary of summaries:
+
+analyzed: burrito.spthy
+
+  output:          burrito_sanity_checks.spthy
+  processing time: 1338.300196157s
+  lm_sev_amd_rot_ltk_secrecy (all-traces): analysis incomplete (1 steps)
+  lm_sev_psp_ltk_secrecy (all-traces): analysis incomplete (1 steps)
+  lm_sev_enclave_secrets_secrecy (all-traces): analysis incomplete (1 steps)
+  lm_sev_guest_secret_secrecy_weak (all-traces): analysis incomplete (1 steps)
+  lm_sev_guest_secret_secrecy (all-traces): analysis incomplete (1 steps)
+  lm_sev_public_key_agreement (all-traces): analysis incomplete (1 steps)
+  lm_sgx_intel_rot_ltk_secrecy (all-traces): analysis incomplete (1 steps)
+  lm_sgx_qe_ltk_secrecy (all-traces): analysis incomplete (1 steps)
+  lm_sgx_rp_qe_ltk_authenticity (all-traces): analysis incomplete (1 steps)
+  lm_sgx_rp_qe_ltk_secrecy (all-traces): analysis incomplete (1 steps)
+  lm_sgx_quote_authenticity_weak (all-traces): analysis incomplete (1 steps)
+  lm_sgx_quote_authenticity (all-traces): analysis incomplete (1 steps)
+  lm_burrito_quote_integrity_weak (all-traces): analysis incomplete (1 steps)
+  lm_burrito_quote_integrity_strong (all-traces): analysis incomplete (1 steps)
+  ex_can_generate_burrito_quote (exists-trace): verified (30 steps)
+  ex_can_verify_quote_created_by_adversary (exists-trace): verified (11 steps)
+  ex_adversary_can_launch_sev_guest (exists-trace): verified (19 steps)
+  ex_adversary_can_launch_sev_guest_and_extract_secret (exists-trace): verified (17 steps)
+  ex_can_launch_sev_guest_without_adversary (exists-trace): verified (17 steps)
+  should_fail_lm_sgx_quote_authenticity_1 (all-traces): falsified - found trace (11 steps)
+  should_fail_lm_sgx_quote_authenticity_2 (all-traces): falsified - found trace (38 steps)
+  should_fail_lm_sgx_quote_authenticity_3 (all-traces): falsified - found trace (29 steps)
+  should_fail_lm_sgx_quote_authenticity_4 (all-traces): falsified - found trace (14 steps)
+  should_fail_lm_sev_guest_secret_secrecy_1 (all-traces): falsified - found trace (17 steps)
+  should_fail_lm_sev_guest_secret_secrecy_2 (all-traces): falsified - found trace (15 steps)
+  should_fail_lm_sev_guest_secret_secrecy_3 (all-traces): falsified - found trace (17 steps)
+  should_fail_lm_sev_guest_secret_secrecy_4 (all-traces): falsified - found trace (22 steps)
+  should_fail_lm_burrito_quote_integrity_1 (all-traces): falsified - found trace (12 steps)
+  should_fail_lm_burrito_quote_integrity_2 (all-traces): falsified - found trace (29 steps)
+  should_fail_lm_burrito_quote_integrity_3 (all-traces): falsified - found trace (30 steps)
+  should_fail_lm_burrito_quote_integrity_4 (all-traces): falsified - found trace (30 steps)
+  should_fail_lm_burrito_quote_integrity_5 (all-traces): falsified - found trace (15 steps)
+  should_fail_lm_burrito_quote_integrity_6 (all-traces): falsified - found trace (34 steps)
+  should_fail_lm_burrito_quote_integrity_7 (all-traces): falsified - found trace (32 steps)
+
+==============================================================================
