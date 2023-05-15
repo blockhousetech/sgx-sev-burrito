@@ -17,7 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 -->
 # Burrito
 
-Flexible remote attestation of pre-SNP SEV guest machines using SGX enclaves
+Flexible remote attestation of pre-SNP SEV guest machines using SGX enclaves.
+
+This project is a research prototype which is provided "as is" and without any sort of warranty, unless otherwise stated.
 
 ## Tamarin model
 
