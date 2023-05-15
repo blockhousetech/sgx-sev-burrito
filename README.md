@@ -259,6 +259,8 @@ python3 sev-report-generation.py --stdout-file stdout.test --model-file model.te
 
 Run `./download_qemu.sh` inside `sev_orchestrator/deps` folder.
 
+For the sake of convenience, we have provided certificates and even an (throwaway/temp) OCA key pair in `sev_orchestrator/data/certs` folder. One can regenerate that as per https://github.com/AMDESE/sev-tool.
+
 The script *sev-orchestrator.py* is responsible for orchestrating the deployment of a SEV VM according to our protocol. It is meant to be executed on the SEV host and it acts as a client to the trusted deployer and it also automates the deployment and provisioning of the SEV VM with the information returned by the trusted owner.
 
 1. Given some input initrd, passed as a parameter to the script, it calls *deploy vm* on the trusted owner. It uses the session buffer and GODH --- together with the pre-built kernel, initrd passed as parameter, and fixed kernel command line --- to deploy a SEV VM.
