@@ -312,7 +312,7 @@ This will run the whole evaluation process and output the relevant files in the 
 Burrito is a part of ~~Mexican cuisine~~ the research effort that we present in [[1]](#1); the preprint is available [here](https://arxiv.org/abs/2305.09351). If you want to refer to our work, please use the following BibTeX entry for citation.
 
 ```
- @article{Antonino-Ante-Woloszyn23:Flexible-remote-attestation-of-pre-SNP-SEV-VMs-using-SGX-enclaves,
+ @article{Antonino-Derek-Woloszyn23:Flexible-remote-attestation-of-pre-SNP-SEV-VMs-using-SGX-enclaves,
       title={Flexible remote attestation of pre-SNP SEV VMs using SGX enclaves}, 
       author={Pedro Antonino and Ante Derek and Wojciech Aleksander Wołoszyn},
       year={2023},
