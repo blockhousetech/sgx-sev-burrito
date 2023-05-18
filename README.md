@@ -307,6 +307,27 @@ There is an `examples` folder contains the examples that we used in our evaluati
 ```
 This will run the whole evaluation process and output the relevant files in the SEV host in the folder `~/eval-tf/` files. For instance, for the example above it generates: `beginner.py_model.tar.gz` (tensor flow model), `beginner.py_quote.dat` (quote), `beginner.py_report_time.txt` (vm quote generation time), `beginner.py_stdout.txt` (stdout).
 
+## Citing
+
+Burrito is a part of ~~Mexican cuisine~~ the research effort that we present in [[1]](#1); the preprint is available [here](https://arxiv.org/abs/2305.09351). If you want to refer to our work, please use the following BibTeX entry for citation.
+
+```
+ @article{Antonino-Ante-Woloszyn23:Flexible-remote-attestation-of-pre-SNP-SEV-VMs-using-SGX-enclaves,
+      title={Flexible remote attestation of pre-SNP SEV VMs using SGX enclaves}, 
+      author={Pedro Antonino and Ante Derek and Wojciech Aleksander Wołoszyn},
+      year={2023},
+      eprint={2305.09351},
+      archivePrefix={arXiv},
+      primaryClass={cs.CR}
+ }
+```
+
+## References
+
+<a id="1">[1]</a> Pedro Antonino and Ante Derek and Wojciech Aleksander Wołoszyn (2023). 
+Flexible remote attestation of pre-SNP SEV VMs using SGX enclaves. Submitted with preprint
+available at [https://arxiv.org/abs/2305.09351](https://arxiv.org/abs/2305.09351).
+
 
 
 
