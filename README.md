@@ -309,24 +309,24 @@ This will run the whole evaluation process and output the relevant files in the 
 
 ## Citing
 
-Burrito is a part of ~~Mexican cuisine~~ the research effort that we present in [[1]](#1); the preprint is available [here](https://arxiv.org/abs/2305.09351). If you want to refer to our work, please use the following BibTeX entry for citation.
+Burrito is a part of ~~Mexican cuisine~~ the research effort that we present in [[1]](#1); the open-access article is available [here](https://ieeexplore.ieee.org/document/10230233). If you want to refer to our work, please use the following BibTeX entry for citation.
 
 ```
- @article{Antonino-Derek-Woloszyn23:Flexible-remote-attestation-of-pre-SNP-SEV-VMs-using-SGX-enclaves,
-      title={Flexible remote attestation of pre-SNP SEV VMs using SGX enclaves}, 
-      author={Pedro Antonino and Ante Derek and Wojciech Aleksander Wołoszyn},
-      year={2023},
-      eprint={2305.09351},
-      archivePrefix={arXiv},
-      primaryClass={cs.CR}
- }
+ @ARTICLE{Antonino-Derek-Woloszyn23:Flexible-remote-attestation-of-pre-SNP-SEV-VMs-using-SGX-enclaves,
+  author={Antonino, Pedro and Derek, Ante and Wołoszyn, Wojciech Aleksander},
+  journal={IEEE Access}, 
+  title={Flexible Remote Attestation of Pre-SNP SEV VMs Using SGX Enclaves}, 
+  year={2023},
+  volume={11},
+  number={},
+  pages={90839-90856},
+  doi={10.1109/ACCESS.2023.3308850}}
 ```
 
 ## References
 
-<a id="1">[1]</a> Pedro Antonino and Ante Derek and Wojciech Aleksander Wołoszyn (2023). 
-Flexible remote attestation of pre-SNP SEV VMs using SGX enclaves. Submitted with preprint
-available at [https://arxiv.org/abs/2305.09351](https://arxiv.org/abs/2305.09351).
+<a id="1">[1]</a> P. Antonino, A. Derek and W. A. Wołoszyn, "Flexible Remote Attestation of Pre-SNP SEV VMs Using SGX Enclaves," in IEEE Access, vol. 11, pp. 90839-90856, 2023, doi: 10.1109/ACCESS.2023.3308850.
+available at [https://ieeexplore.ieee.org/document/10230233](https://ieeexplore.ieee.org/document/10230233).
 
 
 
